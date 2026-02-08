@@ -202,3 +202,180 @@ class TestAnalyzeTrivyResults:
 
         stale = ignores - used
         assert stale == {"CVE-2024-9999"}
+
+
+class TestEdgeCases:
+    def test_ghsa_vulnerability_ids(self):
+        data = {
+            "Results": [
+                {
+                    "Target": "test-image",
+                    "Vulnerabilities": [
+                        {
+                            "VulnerabilityID": "GHSA-1234-5678-abcd",
+                            "PkgName": "axios",
+                            "Title": "SSRF vulnerability",
+                        }
+                    ],
+                }
+            ]
+        }
+        ignores = {"GHSA-1234-5678-abcd"}
+
+        unignored, used = analyze_trivy_results(data, ignores)
+
+        assert unignored == []
+        assert used == {"GHSA-1234-5678-abcd"}
+
+    def test_rustsec_vulnerability_ids(self):
+        data = {
+            "Results": [
+                {
+                    "Target": "test-image",
+                    "Vulnerabilities": [
+                        {
+                            "VulnerabilityID": "RUSTSEC-2024-0001",
+                            "PkgName": "hyper",
+                            "Title": "Memory leak",
+                        }
+                    ],
+                }
+            ]
+        }
+        ignores = {"RUSTSEC-2024-0001"}
+
+        unignored, used = analyze_trivy_results(data, ignores)
+
+        assert unignored == []
+        assert used == {"RUSTSEC-2024-0001"}
+
+    def test_multiple_targets(self):
+        data = {
+            "Results": [
+                {
+                    "Target": "layer1",
+                    "Vulnerabilities": [
+                        {
+                            "VulnerabilityID": "CVE-2024-0001",
+                            "PkgName": "pkg1",
+                            "Title": "Vuln 1",
+                        }
+                    ],
+                },
+                {
+                    "Target": "layer2",
+                    "Vulnerabilities": [
+                        {
+                            "VulnerabilityID": "CVE-2024-0002",
+                            "PkgName": "pkg2",
+                            "Title": "Vuln 2",
+                        }
+                    ],
+                },
+            ]
+        }
+        ignores = {"CVE-2024-0001"}
+
+        unignored, used = analyze_trivy_results(data, ignores)
+
+        assert len(unignored) == 1
+        assert "CVE-2024-0002" in unignored[0]
+        assert used == {"CVE-2024-0001"}
+
+    def test_vulnerability_without_title(self):
+        data = {
+            "Results": [
+                {
+                    "Target": "test-image",
+                    "Vulnerabilities": [
+                        {"VulnerabilityID": "CVE-2024-0001", "PkgName": "pkg"}
+                    ],
+                }
+            ]
+        }
+        ignores = set()
+
+        unignored, used = analyze_trivy_results(data, ignores)
+
+        assert len(unignored) == 1
+        assert "CVE-2024-0001" in unignored[0]
+        assert "No title" in unignored[0]
+
+    def test_secret_not_ignored(self):
+        data = {
+            "Results": [
+                {
+                    "Target": "/app/secrets.json",
+                    "Secrets": [
+                        {"RuleID": "generic-api-key", "Title": "Generic API Key"}
+                    ],
+                }
+            ]
+        }
+        ignores = set()
+
+        unignored, used = analyze_trivy_results(data, ignores)
+
+        assert len(unignored) == 1
+        assert "[SECRET]" in unignored[0]
+        assert "generic-api-key" in unignored[0]
+
+    def test_basename_glob_match(self):
+        data = {
+            "Results": [
+                {
+                    "Target": "/some/path/to/key.pem",
+                    "Secrets": [{"RuleID": "private-key", "Title": "Private Key"}],
+                }
+            ]
+        }
+        ignores = {"*.pem"}
+
+        unignored, used = analyze_trivy_results(data, ignores)
+
+        assert unignored == []
+        assert used == {"*.pem"}
+
+    def test_empty_vulnerabilities_list(self):
+        data = {"Results": [{"Target": "test-image", "Vulnerabilities": []}]}
+        ignores = {"CVE-2024-0001"}
+
+        unignored, used = analyze_trivy_results(data, ignores)
+
+        assert unignored == []
+        assert used == set()
+
+    def test_no_vulnerabilities_key(self):
+        data = {"Results": [{"Target": "test-image"}]}
+        ignores = set()
+
+        unignored, used = analyze_trivy_results(data, ignores)
+
+        assert unignored == []
+        assert used == set()
+
+
+class TestTrivyIgnoresFormat:
+    def test_whitespace_handling(self, tmp_path):
+        ignore_file = tmp_path / ".trivyignore"
+        ignore_file.write_text("  CVE-2024-0001  \n\tCVE-2024-0002\t\n")
+
+        result = load_trivy_ignores(str(ignore_file))
+
+        assert result == {"CVE-2024-0001", "CVE-2024-0002"}
+
+    def test_inline_comment_with_spaces(self, tmp_path):
+        ignore_file = tmp_path / ".trivyignore"
+        ignore_file.write_text("CVE-2024-0001   #   spaced comment  \n")
+
+        result = load_trivy_ignores(str(ignore_file))
+
+        assert result == {"CVE-2024-0001"}
+
+    def test_comment_only_file(self, tmp_path):
+        ignore_file = tmp_path / ".trivyignore"
+        ignore_file.write_text("# Just a comment\n# Another comment\n")
+
+        result = load_trivy_ignores(str(ignore_file))
+
+        assert result == set()
