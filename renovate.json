@@ -17,10 +17,14 @@
             "automerge": true
         }
     ],
-    "pre-commit": {
-        "enabled": true
-    },
-    "uv": {
-        "enabled": true
+    "enabledManagers": [
+        "pep621",
+        "github-actions",
+        "pre-commit",
+        "regex"
+    ],
+    "lockFileMaintenance": {
+        "enabled": true,
+        "automerge": true
     }
 }
