@@ -1,0 +1,61 @@
+name: Trivy Scan
+description: Run Trivy security scan with stale-ignore detection and Discord notifications
+
+inputs:
+  image:
+    description: Docker image to scan
+    required: true
+  trivyignore:
+    description: Path to .trivyignore file
+    required: false
+    default: .trivyignore
+  severity:
+    description: Severity levels to scan for
+    required: false
+    default: HIGH,CRITICAL
+  discord-webhook:
+    description: Discord webhook URL for stale ignore notifications
+    required: false
+    default: ""
+
+outputs:
+  scan-passed:
+    description: Whether the scan passed
+    value: ${{ steps.analyze.outputs.passed }}
+  stale-ignores:
+    description: List of stale ignores found
+    value: ${{ steps.analyze.outputs.stale_ignores }}
+
+runs:
+  using: composite
+  steps:
+    - name: Run Trivy Scan
+      shell: bash
+      run: |
+        trivy image \
+          --format json \
+          --output trivy-results.json \
+          --severity "${{ inputs.severity }}" \
+          --ignore-unfixed \
+          "${{ inputs.image }}"
+
+    - name: Analyze Results
+      id: analyze
+      shell: bash
+      env:
+        SECURITY_NOTIFICATIONS_DISCORD: ${{ inputs.discord-webhook }}
+        IMAGE_NAME: ${{ inputs.image }}
+      run: |
+        IGNORE_FILE="${{ inputs.trivyignore }}"
+        if [ ! -f "$IGNORE_FILE" ]; then
+          IGNORE_FILE="/dev/null"
+        fi
+
+        SCRIPT_DIR="${{ github.action_path }}/../../scripts"
+
+        if python3 "$SCRIPT_DIR/check_scan_results.py" trivy-results.json "$IGNORE_FILE"; then
+          echo "passed=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "passed=false" >> "$GITHUB_OUTPUT"
+          exit 1
+        fi

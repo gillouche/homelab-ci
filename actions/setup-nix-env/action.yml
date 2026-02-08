@@ -1,0 +1,27 @@
+name: Setup Nix Environment
+description: Configure AWS credentials for Nix cache access (Nix is pre-installed in runner)
+
+runs:
+  using: composite
+  steps:
+    - name: Setup AWS Profile for Nix
+      shell: bash
+      run: |
+        mkdir -p ~/.aws
+
+        echo "[nix]" > ~/.aws/credentials
+        echo "aws_access_key_id=$NIX_ACCESS_KEY_ID" >> ~/.aws/credentials
+        echo "aws_secret_access_key=$NIX_SECRET_ACCESS_KEY" >> ~/.aws/credentials
+
+        echo "[profile nix]" > ~/.aws/config
+        echo "region=us-east-1" >> ~/.aws/config
+
+        echo "[default]" >> ~/.aws/credentials
+        echo "aws_access_key_id=$NIX_ACCESS_KEY_ID" >> ~/.aws/credentials
+        echo "aws_secret_access_key=$NIX_SECRET_ACCESS_KEY" >> ~/.aws/credentials
+        echo "[profile default]" >> ~/.aws/config
+        echo "region=us-east-1" >> ~/.aws/config
+
+        sudo mkdir -p /root/.aws
+        sudo cp ~/.aws/credentials /root/.aws/credentials
+        sudo cp ~/.aws/config /root/.aws/config
