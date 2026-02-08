@@ -1,4 +1,10 @@
-from check_scan_results import load_trivy_ignores, analyze_trivy_results
+from unittest.mock import patch, MagicMock
+from check_scan_results import (
+    load_trivy_ignores,
+    analyze_trivy_results,
+    send_discord_notification,
+)
+import json
 
 
 class TestLoadTrivyIgnores:
@@ -379,3 +385,54 @@ class TestTrivyIgnoresFormat:
         result = load_trivy_ignores(str(ignore_file))
 
         assert result == set()
+
+
+class TestDiscordNotification:
+    @patch("check_scan_results.urllib.request.urlopen")
+    def test_basic_notification(self, mock_urlopen):
+        mock_response = MagicMock()
+        mock_response.status = 200
+        mock_response.reason = "OK"
+        mock_response.__enter__ = MagicMock(return_value=mock_response)
+        mock_response.__exit__ = MagicMock(return_value=None)
+        mock_urlopen.return_value = mock_response
+
+        status, reason = send_discord_notification(
+            "http://webhook", "image", "v1", {"CVE-1", "CVE-2"}
+        )
+
+        assert status == 200
+        assert reason == "OK"
+        mock_urlopen.assert_called_once()
+
+    @patch("check_scan_results.urllib.request.urlopen")
+    def test_notification_with_pagination(self, mock_urlopen):
+        mock_response = MagicMock()
+        mock_response.status = 200
+        mock_response.reason = "OK"
+        mock_response.__enter__ = MagicMock(return_value=mock_response)
+        mock_response.__exit__ = MagicMock(return_value=None)
+        mock_urlopen.return_value = mock_response
+
+        # Create many ignores to force pagination
+        # Each item is like "- `CVE-XXXX-YYYY`\n", approx 20 chars
+        # 1900 max length -> ~90 items per chunk
+        # We'll make 200 items to ensure at least 3 chunks
+        many_ignores = {f"CVE-2024-{i:04d}" for i in range(200)}
+
+        status, reason = send_discord_notification(
+            "http://webhook", "image", "v1", many_ignores
+        )
+
+        assert status == 200
+        assert reason == "OK"
+
+        # Should be called multiple times (likely 3 times for 200 items)
+        assert mock_urlopen.call_count >= 2
+
+        # Verify pagination headers in calls
+        calls = mock_urlopen.call_args_list
+        messages = [json.loads(call[0][0].data.decode())["content"] for call in calls]
+
+        assert "(Part 1/" in messages[0]
+        assert f"(Part {len(messages)}/{len(messages)})" in messages[-1]

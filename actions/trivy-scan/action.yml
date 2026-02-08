@@ -50,13 +50,10 @@ runs:
 
         SCRIPT_DIR="${{ github.action_path }}/../../scripts"
 
-        OPTS=()
-        if [ -n "${{ inputs.discord-webhook }}" ]; then
-          OPTS+=(--webhook "${{ inputs.discord-webhook }}")
-        fi
-        OPTS+=(--image "${{ inputs.image }}")
+        WEBHOOK="${{ inputs.discord-webhook }}"
+        IMAGE="${{ inputs.image }}"
 
-        if python3 "$SCRIPT_DIR/check_scan_results.py" trivy-results.json "$IGNORE_FILE" "${OPTS[@]}"; then
+        if python3 "$SCRIPT_DIR/check_scan_results.py" --results trivy-results.json --ignore "$IGNORE_FILE" --webhook "$WEBHOOK" --image "$IMAGE"; then
           echo "passed=true" >> "$GITHUB_OUTPUT"
         else
           echo "passed=false" >> "$GITHUB_OUTPUT"

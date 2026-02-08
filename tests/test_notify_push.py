@@ -66,7 +66,7 @@ class TestSendDiscordNotification:
         call_args = mock_urlopen.call_args[0][0]
         assert call_args.full_url == "https://discord.com/webhook"
         assert call_args.get_header("Content-type") == "application/json"
-        assert call_args.get_header("User-agent") == "Container-Factory-Notifier"
+        assert call_args.get_header("User-agent") == "Homelab-CI-Notify/1.0"
 
     @patch("notify_push.urllib.request.urlopen")
     def test_raises_on_network_error(self, mock_urlopen):
