@@ -1,4 +1,5 @@
 from unittest.mock import patch, MagicMock
+import pytest
 from check_scan_results import (
     load_trivy_ignores,
     analyze_trivy_results,
@@ -436,3 +437,100 @@ class TestDiscordNotification:
 
         assert "(Part 1/" in messages[0]
         assert f"(Part {len(messages)}/{len(messages)})" in messages[-1]
+
+    @patch("check_scan_results.urllib.request.urlopen")
+    def test_notification_failure(self, mock_urlopen):
+        mock_urlopen.side_effect = Exception("Network error")
+
+        with pytest.raises(Exception, match="Network error"):
+            send_discord_notification("http://webhook", "image", "v1", {"CVE-1"})
+
+
+class TestMainIntegration:
+    @patch(
+        "check_scan_results.sys.argv",
+        [
+            "check_scan_results.py",
+            "--results",
+            "trivy.json",
+            "--ignore",
+            ".trivyignore",
+        ],
+    )
+    @patch("check_scan_results.load_trivy_ignores")
+    @patch("check_scan_results.analyze_trivy_results")
+    @patch("builtins.open", new_callable=MagicMock)
+    @patch("json.load")
+    def test_main_success_no_findings(
+        self, mock_json_load, mock_open, mock_analyze, mock_load_ignores
+    ):
+        mock_load_ignores.return_value = set()
+        mock_analyze.return_value = ([], set())
+
+        with pytest.raises(SystemExit) as e:
+            from check_scan_results import main
+
+            main()
+
+        assert e.value.code == 0
+
+    @patch(
+        "check_scan_results.sys.argv",
+        [
+            "check_scan_results.py",
+            "--results",
+            "trivy.json",
+            "--ignore",
+            ".trivyignore",
+        ],
+    )
+    @patch("check_scan_results.load_trivy_ignores")
+    @patch("check_scan_results.analyze_trivy_results")
+    @patch("builtins.open", new_callable=MagicMock)
+    @patch("json.load")
+    def test_main_failure_with_findings(
+        self, mock_json_load, mock_open, mock_analyze, mock_load_ignores
+    ):
+        mock_load_ignores.return_value = set()
+        mock_analyze.return_value = (["Found CVE-123"], set())
+
+        with pytest.raises(SystemExit) as e:
+            from check_scan_results import main
+
+            main()
+
+        assert e.value.code == 1
+
+    @patch(
+        "check_scan_results.sys.argv",
+        [
+            "check_scan_results.py",
+            "--results",
+            "trivy.json",
+            "--ignore",
+            ".trivyignore",
+            "--webhook",
+            "http://hook",
+        ],
+    )
+    @patch("check_scan_results.load_trivy_ignores")
+    @patch("check_scan_results.analyze_trivy_results")
+    @patch("builtins.open", new_callable=MagicMock)
+    @patch("json.load")
+    @patch("check_scan_results.send_discord_notification")
+    def test_main_stale_ignores_notification(
+        self, mock_notify, mock_json_load, mock_open, mock_analyze, mock_load_ignores
+    ):
+        # Setup: have some stale ignores
+        ignores = {"CVE-1", "CVE-2"}
+        mock_load_ignores.return_value = ignores
+        # Analyze returns no used ignores, so all are stale
+        mock_analyze.return_value = ([], set())
+
+        with pytest.raises(SystemExit) as e:
+            from check_scan_results import main
+
+            main()
+
+        assert e.value.code == 0
+        mock_notify.assert_called_once()
