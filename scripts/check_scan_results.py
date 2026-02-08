@@ -158,7 +158,7 @@ def send_discord_notification(
     )
 
     # Discord limit is 2000. We use 1900 to be safe and account for "Part X/Y" suffix.
-    MAX_LENGTH = 1900
+    max_length = 1900
 
     chunks: List[List[str]] = []
     current_chunk_items: List[str] = []
@@ -168,7 +168,7 @@ def send_discord_notification(
         line = f"- `{item}`\n"
         line_length = len(line)
 
-        if current_length + line_length > MAX_LENGTH:
+        if current_length + line_length > max_length:
             # Chunk full, save it
             chunks.append(current_chunk_items)
             current_chunk_items = [line]
@@ -209,7 +209,7 @@ def send_discord_notification(
     return last_status
 
 
-def main() -> None:
+def main():
     parser = argparse.ArgumentParser(
         description="Analyze Trivy scan results and validate ignore rules.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,

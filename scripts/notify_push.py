@@ -76,7 +76,7 @@ def send_discord_notification(
         return response.status, response.reason
 
 
-def main() -> None:
+def main():
     parser = argparse.ArgumentParser(
         description="Send Discord notification for pushed container image.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
