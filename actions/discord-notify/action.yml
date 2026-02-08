@@ -1,0 +1,40 @@
+name: Discord Notify
+description: Send Discord webhook notifications
+
+inputs:
+  webhook:
+    description: Discord webhook URL
+    required: true
+  status:
+    description: Status (success, failure, warning, info)
+    required: true
+  title:
+    description: Notification title
+    required: true
+  message:
+    description: Notification message
+    required: true
+  username:
+    description: Bot username
+    required: false
+    default: Homelab CI
+
+runs:
+  using: composite
+  steps:
+    - name: Send Discord Notification
+      shell: bash
+      run: |
+        case "${{ inputs.status }}" in
+          success) EMOJI="+" ;;
+          failure) EMOJI="x" ;;
+          warning) EMOJI="!" ;;
+          *) EMOJI="i" ;;
+        esac
+
+        CONTENT="[$EMOJI] **${{ inputs.title }}**
+        ${{ inputs.message }}"
+
+        curl -s -X POST "${{ inputs.webhook }}" \
+          -H "Content-Type: application/json" \
+          -d "{\"username\": \"${{ inputs.username }}\", \"content\": \"$CONTENT\"}"
