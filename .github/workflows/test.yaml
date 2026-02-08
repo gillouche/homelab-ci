@@ -31,4 +31,4 @@ jobs:
 
       - name: Run tests
         run: |
-            pytest -v --cov=scripts --cov-report=term-missing
+            uv run pytest -v --cov=scripts --cov-report=term-missing
