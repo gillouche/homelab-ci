@@ -42,9 +42,6 @@ runs:
     - name: Analyze Results
       id: analyze
       shell: bash
-      env:
-        SECURITY_NOTIFICATIONS_DISCORD: ${{ inputs.discord-webhook }}
-        IMAGE_NAME: ${{ inputs.image }}
       run: |
         IGNORE_FILE="${{ inputs.trivyignore }}"
         if [ ! -f "$IGNORE_FILE" ]; then
@@ -53,7 +50,13 @@ runs:
 
         SCRIPT_DIR="${{ github.action_path }}/../../scripts"
 
-        if python3 "$SCRIPT_DIR/check_scan_results.py" trivy-results.json "$IGNORE_FILE"; then
+        OPTS=()
+        if [ -n "${{ inputs.discord-webhook }}" ]; then
+          OPTS+=(--webhook "${{ inputs.discord-webhook }}")
+        fi
+        OPTS+=(--image "${{ inputs.image }}")
+
+        if python3 "$SCRIPT_DIR/check_scan_results.py" trivy-results.json "$IGNORE_FILE" "${OPTS[@]}"; then
           echo "passed=true" >> "$GITHUB_OUTPUT"
         else
           echo "passed=false" >> "$GITHUB_OUTPUT"

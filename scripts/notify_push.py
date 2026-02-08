@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
 import json
-import os
 import sys
+import argparse
 import urllib.request
 
 
@@ -33,22 +33,24 @@ def send_discord_notification(webhook_url: str, message: dict) -> tuple[int, str
 
 
 def main():
-    if len(sys.argv) < 4:
-        print(f"Usage: {sys.argv[0]} <image_name> <tag> <digest>")
-        sys.exit(1)
+    parser = argparse.ArgumentParser(
+        description="Send Discord notification for pushed image."
+    )
+    parser.add_argument("image_name", help="Image name")
+    parser.add_argument("tag", help="Image tag")
+    parser.add_argument("digest", help="Image digest")
+    parser.add_argument("--webhook", help="Discord webhook URL", default=None)
 
-    image_name = sys.argv[1]
-    tag = sys.argv[2]
-    digest = sys.argv[3]
+    args = parser.parse_args()
 
-    webhook_url = os.environ.get("SECURITY_NOTIFICATIONS_DISCORD")
+    webhook_url = args.webhook
     if not webhook_url:
-        print("Skipping notification: SECURITY_NOTIFICATIONS_DISCORD not set.")
+        print("Skipping notification: --webhook not provided.")
         sys.exit(0)
 
-    print(f"Sending Discord notification for {image_name}:{tag}...")
+    print(f"Sending Discord notification for {args.image_name}:{args.tag}...")
 
-    message = format_push_message(image_name, tag, digest)
+    message = format_push_message(args.image_name, args.tag, args.digest)
 
     try:
         status, reason = send_discord_notification(webhook_url, message)

@@ -3,6 +3,7 @@
 import json
 import sys
 import os
+import argparse
 import fnmatch
 
 
@@ -109,12 +110,17 @@ def send_discord_notification(webhook_url, image_name, version, stale_ignores):
 
 
 def main():
-    if len(sys.argv) != 3:
-        print(f"Usage: {sys.argv[0]} <trivy-results.json> <.trivyignore>")
-        sys.exit(1)
+    parser = argparse.ArgumentParser(description="Analyze Trivy scan results")
+    parser.add_argument("results_file", help="Path to trivy results JSON file")
+    parser.add_argument("ignore_file", help="Path to .trivyignore file")
+    parser.add_argument("--webhook", help="Discord webhook URL", default=None)
+    parser.add_argument("--image", help="Image name", default="Unknown Image")
+    parser.add_argument("--version", help="Image version", default="Unknown Version")
 
-    json_file = sys.argv[1]
-    ignore_file = sys.argv[2]
+    args = parser.parse_args()
+
+    json_file = args.results_file
+    ignore_file = args.ignore_file
 
     ignores = load_trivy_ignores(ignore_file)
     print(f"Loaded {len(ignores)} ignores from {ignore_file}")
@@ -145,11 +151,11 @@ def main():
         for item in sorted_stale:
             print(f"  - {item}")
 
-        webhook_url = os.environ.get("SECURITY_NOTIFICATIONS_DISCORD")
+        webhook_url = args.webhook
         if webhook_url:
             print("Sending Discord notification for stale ignores...")
-            image_context = os.environ.get("IMAGE_NAME", "Unknown Image")
-            version_context = os.environ.get("VERSION", "Unknown Version")
+            image_context = args.image
+            version_context = args.version
 
             try:
                 status, reason = send_discord_notification(

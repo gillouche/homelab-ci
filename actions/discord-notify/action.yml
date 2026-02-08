@@ -35,6 +35,7 @@ runs:
         CONTENT="[$EMOJI] **${{ inputs.title }}**
         ${{ inputs.message }}"
 
+
         curl -s -X POST "${{ inputs.webhook }}" \
           -H "Content-Type: application/json" \
           -d "{\"username\": \"${{ inputs.username }}\", \"content\": \"$CONTENT\"}"
