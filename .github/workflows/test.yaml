@@ -2,40 +2,33 @@ name: Test
 
 on:
   push:
-    branches: [main]
+    branches: [ main ]
   pull_request:
-    branches: [main]
-  workflow_dispatch:
+    branches: [ main ]
 
 permissions:
   contents: read
 
 jobs:
-  security-check:
-    name: Security Check
-    runs-on: ubuntu-latest
-    if: github.repository_owner == 'gillouche'
-    outputs:
-      is_safe: ${{ steps.gate.outputs.is_safe }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: gillouche/homelab-ci/actions/security-gate@main
-        id: gate
-
   test:
+    runs-on: ubuntu-latest
     name: Run Tests
-    needs: security-check
-    if: needs.security-check.outputs.is_safe == 'true'
-    runs-on: [self-hosted, homelab-runner]
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Nix Environment
-        uses: gillouche/homelab-ci/actions/setup-nix-env@main
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Setup virtual environment
+        run: |
+          uv venv
+          uv sync --all-extras
 
       - name: Run tests
         run: |
-          nix develop --command bash -c '
-            uv sync --all-extras --quiet
             pytest -v --cov=scripts --cov-report=term-missing
-          '
