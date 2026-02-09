@@ -1,0 +1,29 @@
+name: Push Notify
+description: Send specialized Discord notification for container image pushes
+
+inputs:
+  webhook:
+    description: Discord webhook URL
+    required: true
+  image:
+    description: Image name
+    required: true
+  tag:
+    description: Image tag
+    required: true
+  digest:
+    description: Image digest
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Send Push Notification
+      shell: bash
+      run: |
+        SCRIPT_DIR="${{ github.action_path }}/../../scripts"
+        python3 "$SCRIPT_DIR/notify_push.py" \
+          "${{ inputs.image }}" \
+          "${{ inputs.tag }}" \
+          "${{ inputs.digest }}" \
+          --webhook "${{ inputs.webhook }}"
