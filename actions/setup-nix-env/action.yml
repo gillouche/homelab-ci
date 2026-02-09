@@ -1,7 +1,6 @@
 name: Setup Nix Environment
 description: Configure AWS credentials for Nix cache access (Nix is pre-installed in runner)
 
-inputs:
 
 runs:
   using: composite
