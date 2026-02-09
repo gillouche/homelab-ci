@@ -14,33 +14,45 @@ import json
 import sys
 import urllib.request
 import urllib.error
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple, Any
 
 
-def format_push_message(image_name: str, tag: str, digest: str) -> Dict[str, str]:
+def format_push_message(image_name: str, tag: str, digest: str) -> Dict[str, Any]:
     """
-    Format the Discord message for a pushed image.
+    Format the Discord message for a pushed image using Embeds.
 
     Args:
         image_name: The name of the container image.
-        tag: The tag of the image (e.g., 'latest', 'v1.0.0').
+        tag: The tag of the image.
         digest: The SHA256 digest of the image manifest.
 
     Returns:
-        A dictionary payload suitable for a Discord webhook.
+        A dictionary payload suitable for a Discord webhook (embeds).
     """
-    content = (
-        f"**New Image Pushed**\n"
-        f"**Image:** `{image_name}`\n"
-        f"**Tag:** `{tag}`\n"
-        f"**Digest:** `{digest}`\n"
-        f"\nUpdate your manifests to use this secure pinning!"
-    )
-    return {"username": "Container Factory", "content": content}
+    if len(digest) > 100:
+        digest = digest[:100] + "... (truncated)"
+
+    payload = {
+        "username": "Container Factory",
+        "embeds": [
+            {
+                "title": "New Image Pushed",
+                "color": 3066993,  # Green
+                "fields": [
+                    {"name": "Image", "value": f"`{image_name}`", "inline": False},
+                    {"name": "Tag", "value": f"`{tag}`", "inline": True},
+                    {"name": "Digest", "value": f"`{digest}`", "inline": False},
+                ],
+                "footer": {"text": "Container Factory • Homelab CI"},
+                "timestamp": None,  # Optional
+            }
+        ],
+    }
+    return payload
 
 
 def send_discord_notification(
-    webhook_url: str, message: Dict[str, str], timeout: int = 10
+    webhook_url: str, message: Dict[str, Any], timeout: int = 10
 ) -> Tuple[int, str]:
     """
     Send a message to a Discord webhook.

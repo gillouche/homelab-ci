@@ -10,28 +10,31 @@ class TestFormatPushMessage:
         )
 
         assert result["username"] == "Container Factory"
-        assert "**New Image Pushed**" in result["content"]
-        assert "`nexus.example.com/app/service`" in result["content"]
-        assert "`v1.0.0`" in result["content"]
-        assert "`sha256:abc123`" in result["content"]
+        assert "embeds" in result
+        embed = result["embeds"][0]
+        assert embed["title"] == "New Image Pushed"
 
-    def test_contains_pinning_reminder(self):
-        result = format_push_message("image", "tag", "digest")
-
-        assert "secure pinning" in result["content"]
+        fields = {f["name"]: f["value"] for f in embed["fields"]}
+        assert "`nexus.example.com/app/service`" == fields["Image"]
+        assert "`v1.0.0`" == fields["Tag"]
+        assert "`sha256:abc123`" == fields["Digest"]
 
     def test_special_characters_in_image_name(self):
         result = format_push_message(
             "registry.io/namespace/app-name_v2", "latest", "sha256:12345"
         )
+        embed = result["embeds"][0]
+        fields = {f["name"]: f["value"] for f in embed["fields"]}
+        assert "`registry.io/namespace/app-name_v2`" == fields["Image"]
 
-        assert "registry.io/namespace/app-name_v2" in result["content"]
-
-    def test_long_digest(self):
-        long_digest = "sha256:" + "a" * 64
+    def test_long_digest_truncation(self):
+        long_digest = "sha256:" + "a" * 200
         result = format_push_message("image", "tag", long_digest)
+        embed = result["embeds"][0]
+        fields = {f["name"]: f["value"] for f in embed["fields"]}
 
-        assert long_digest in result["content"]
+        assert "..." in fields["Digest"]
+        assert len(fields["Digest"]) < 200
 
 
 class TestSendDiscordNotification:
@@ -84,6 +87,7 @@ class TestIntegration:
 
         assert isinstance(message, dict)
         assert "username" in message
-        assert "content" in message
-        assert isinstance(message["content"], str)
-        assert len(message["content"]) < 2000
+        assert "embeds" in message
+        assert isinstance(message["embeds"], list)
+        assert len(message["embeds"]) == 1
+        assert "color" in message["embeds"][0]
