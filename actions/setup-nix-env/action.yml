@@ -8,6 +8,7 @@ runs:
     - name: Setup AWS Profile for Nix
       shell: bash
       run: |
+        { set +x; } 2>/dev/null
         mkdir -p ~/.aws
 
         echo "[nix]" > ~/.aws/credentials
