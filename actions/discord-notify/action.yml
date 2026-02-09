@@ -26,17 +26,34 @@ runs:
       shell: bash
       run: |
         case "${{ inputs.status }}" in
-          success) EMOJI="+" ;;
-          failure) EMOJI="x" ;;
-          warning) EMOJI="!" ;;
-          *) EMOJI="i" ;;
+          success)
+            COLOR=3066993 # Green
+            ;;
+          failure)
+            COLOR=15158332 # Red
+            ;;
+          warning)
+            COLOR=16776960 # Yellow
+            ;;
+          *)
+            COLOR=3447003 # Blue
+            ;;
         esac
 
-        CONTENT="[$EMOJI] **${{ inputs.title }}**
-        ${{ inputs.message }}"
-
-        # Use jq to construct valid JSON
-        PAYLOAD=$(jq -n --arg username "${{ inputs.username }}" --arg content "$CONTENT" '{username: $username, content: $content}')
+        # Construct JSON payload with Embeds using jq
+        PAYLOAD=$(jq -n \
+          --arg username "${{ inputs.username }}" \
+          --arg title "${{ inputs.title }}" \
+          --arg description "${{ inputs.message }}" \
+          --argjson color "$COLOR" \
+          '{
+            username: $username,
+            embeds: [{
+              title: $title,
+              description: $description,
+              color: $color
+            }]
+          }')
 
         curl -s -X POST "${{ inputs.webhook }}" \
           -H "Content-Type: application/json" \
