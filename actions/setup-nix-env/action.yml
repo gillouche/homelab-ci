@@ -25,3 +25,24 @@ runs:
         sudo mkdir -p /root/.aws
         sudo cp ~/.aws/credentials /root/.aws/credentials
         sudo cp ~/.aws/config /root/.aws/config
+
+    - name: Check for Existing Nix
+      id: check-nix
+      shell: bash
+      run: |
+        if command -v nix >/dev/null 2>&1; then
+          echo "nix_installed=true" >> $GITHUB_OUTPUT
+          echo "Nix is already installed."
+        else
+          echo "nix_installed=false" >> $GITHUB_OUTPUT
+          echo "Nix is not installed."
+        fi
+
+    - name: Install Nix
+      if: steps.check-nix.outputs.nix_installed != 'true'
+      uses: DeterminateSystems/nix-installer-action@main
+      with:
+        extra-conf: |
+          substituters = s3://nix-cache?endpoint=http://seaweedfs-s3.seaweedfs.svc.cluster.local:8333&scheme=http https://cache.nixos.org/
+          trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
+          require-sigs = false
