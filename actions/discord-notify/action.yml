@@ -35,7 +35,9 @@ runs:
         CONTENT="[$EMOJI] **${{ inputs.title }}**
         ${{ inputs.message }}"
 
+        # Use jq to construct valid JSON
+        PAYLOAD=$(jq -n --arg username "${{ inputs.username }}" --arg content "$CONTENT" '{username: $username, content: $content}')
 
         curl -s -X POST "${{ inputs.webhook }}" \
           -H "Content-Type: application/json" \
-          -d "{\"username\": \"${{ inputs.username }}\", \"content\": \"$CONTENT\"}"
+          -d "$PAYLOAD"
