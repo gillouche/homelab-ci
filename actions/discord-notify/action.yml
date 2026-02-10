@@ -55,6 +55,10 @@ runs:
             ;;
         esac
 
+        # Ensure FIELDS is a valid JSON array
+        FIELDS="${FIELDS:-[]}"
+        if [ -z "$FIELDS" ]; then FIELDS="[]"; fi
+
         # Construct JSON payload with Embeds using jq
         PAYLOAD=$(jq -n \
           --arg username "$USERNAME" \
@@ -74,6 +78,4 @@ runs:
             }]
           }')
 
-        curl -s -X POST "$WEBHOOK" \
-          -H "Content-Type: application/json" \
-          -d "$PAYLOAD"
+        curl -s -X POST "$WEBHOOK" -H "Content-Type: application/json" -d "$PAYLOAD"
