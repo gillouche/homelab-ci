@@ -18,14 +18,29 @@ inputs:
     description: Bot username
     required: false
     default: Homelab CI
+  url:
+    description: URL for the embed title
+    required: false
+  fields:
+    description: JSON string of fields (array of objects with name, value, inline)
+    required: false
+    default: '[]'
 
 runs:
   using: composite
   steps:
     - name: Send Discord Notification
       shell: bash
+      env:
+        WEBHOOK: ${{ inputs.webhook }}
+        STATUS: ${{ inputs.status }}
+        TITLE: ${{ inputs.title }}
+        MESSAGE: ${{ inputs.message }}
+        USERNAME: ${{ inputs.username }}
+        URL: ${{ inputs.url }}
+        FIELDS: ${{ inputs.fields }}
       run: |
-        case "${{ inputs.status }}" in
+        case "$STATUS" in
           success)
             COLOR=3066993 # Green
             ;;
@@ -42,19 +57,23 @@ runs:
 
         # Construct JSON payload with Embeds using jq
         PAYLOAD=$(jq -n \
-          --arg username "${{ inputs.username }}" \
-          --arg title "${{ inputs.title }}" \
-          --arg description "${{ inputs.message }}" \
+          --arg username "$USERNAME" \
+          --arg title "$TITLE" \
+          --arg description "$MESSAGE" \
+          --arg url "$URL" \
+          --argjson fields "$FIELDS" \
           --argjson color "$COLOR" \
           '{
             username: $username,
             embeds: [{
               title: $title,
               description: $description,
-              color: $color
+              color: $color,
+              url: (if $url == "" then null else $url end),
+              fields: $fields
             }]
           }')
 
-        curl -s -X POST "${{ inputs.webhook }}" \
+        curl -s -X POST "$WEBHOOK" \
           -H "Content-Type: application/json" \
           -d "$PAYLOAD"
