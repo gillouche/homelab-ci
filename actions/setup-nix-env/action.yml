@@ -2,35 +2,28 @@ name: Setup Nix Environment
 description: Configure AWS credentials for Nix cache access (Nix is pre-installed in runner)
 
 inputs:
+  profile:
+    description: 'Name of the AWS profile to configure'
+    required: true
   access-key-id:
-    description: 'AWS Access Key ID for Nix cache'
+    description: 'AWS Access Key ID'
     required: true
   secret-access-key:
-    description: 'AWS Secret Access Key for Nix cache'
+    description: 'AWS Secret Access Key'
     required: true
 
 runs:
   using: composite
   steps:
-    - name: Setup AWS Profile for Nix
+    - name: Setup AWS Profile
       shell: bash
       run: |
-        { set +x; } 2>/dev/null
-        mkdir -p ~/.aws
+        python3 "${{ github.action_path }}/../../scripts/configure_aws_profile.py" \
+          --profile "${{ inputs.profile }}" \
+          --access-key-id "${{ inputs.access-key-id }}" \
+          --secret-access-key "${{ inputs.secret-access-key }}"
 
-        echo "[nix]" > ~/.aws/credentials
-        echo "aws_access_key_id=${{ inputs.access-key-id }}" >> ~/.aws/credentials
-        echo "aws_secret_access_key=${{ inputs.secret-access-key }}" >> ~/.aws/credentials
-
-        echo "[profile nix]" > ~/.aws/config
-        echo "region=us-east-1" >> ~/.aws/config
-
-        echo "[default]" >> ~/.aws/credentials
-        echo "aws_access_key_id=${{ inputs.access-key-id }}" >> ~/.aws/credentials
-        echo "aws_secret_access_key=${{ inputs.secret-access-key }}" >> ~/.aws/credentials
-        echo "[profile default]" >> ~/.aws/config
-        echo "region=us-east-1" >> ~/.aws/config
-
+        # Mirror to root for Nix Daemon
         sudo mkdir -p /root/.aws
         sudo cp ~/.aws/credentials /root/.aws/credentials
         sudo cp ~/.aws/config /root/.aws/config
@@ -55,3 +48,15 @@ runs:
           substituters = s3://nix-cache?endpoint=http://seaweedfs-s3.seaweedfs.svc.cluster.local:8333&scheme=http https://cache.nixos.org/
           trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
           require-sigs = false
+
+    - name: Configure Nix Profile (Nix only)
+      if: inputs.profile == 'nix'
+      shell: bash
+      run: |
+        if ! grep -q "s3-creds-profile = nix" /etc/nix/nix.conf 2>/dev/null; then
+          echo "s3-creds-profile = nix" | sudo tee -a /etc/nix/nix.conf
+          # Restart nix-daemon to pick up changes
+          if command -v systemctl >/dev/null 2>&1 && systemctl is-active nix-daemon >/dev/null 2>&1; then
+            sudo systemctl restart nix-daemon
+          fi
+        fi
