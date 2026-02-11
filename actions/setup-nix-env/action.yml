@@ -48,15 +48,4 @@ runs:
           substituters = s3://nix-cache?endpoint=http://seaweedfs-s3.seaweedfs.svc.cluster.local:8333&scheme=http https://cache.nixos.org/
           trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
           require-sigs = false
-
-    - name: Configure Nix Profile (Nix only)
-      if: inputs.profile == 'nix'
-      shell: bash
-      run: |
-        if ! grep -q "s3-creds-profile = nix" /etc/nix/nix.conf 2>/dev/null; then
-          echo "s3-creds-profile = nix" | sudo tee -a /etc/nix/nix.conf
-          # Restart nix-daemon to pick up changes
-          if command -v systemctl >/dev/null 2>&1 && systemctl is-active nix-daemon >/dev/null 2>&1; then
-            sudo systemctl restart nix-daemon
-          fi
-        fi
+          s3-creds-profile = nix
