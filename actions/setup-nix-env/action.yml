@@ -21,21 +21,17 @@ runs:
       uses: DeterminateSystems/nix-installer-action@main
       with:
         extra-conf: |
-          substituters = s3://nix-cache?endpoint=http://seaweedfs-s3.seaweedfs.svc.cluster.local:8333&scheme=http https://cache.nixos.org/
+          substituters = s3://nix-cache?endpoint=http://seaweedfs-s3.seaweedfs.svc.cluster.local:8333&scheme=http&profile=nix https://cache.nixos.org/
           trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
           require-sigs = false
-          s3-creds-profile = nix
 
     - name: Configure Nix S3 Cache Profile
       shell: bash
       run: |
         sudo mkdir -p /etc/nix
-        if ! [ -f /etc/nix/nix.conf ] || ! grep -q "s3-creds-profile = nix" /etc/nix/nix.conf 2>/dev/null; then
-          echo "s3-creds-profile = nix" | sudo tee -a /etc/nix/nix.conf
-          # Restart nix-daemon to pick up changes
-          if command -v systemctl >/dev/null 2>&1 && systemctl is-active nix-daemon >/dev/null 2>&1; then
-            sudo systemctl restart nix-daemon
-          elif [ -f /var/run/nix-daemon.pid ]; then
-            sudo pkill -HUP nix-daemon || true
-          fi
+        # Restart nix-daemon to pick up changes (if any)
+        if command -v systemctl >/dev/null 2>&1 && systemctl is-active nix-daemon >/dev/null 2>&1; then
+          sudo systemctl restart nix-daemon
+        elif [ -f /var/run/nix-daemon.pid ]; then
+          sudo pkill -HUP nix-daemon || true
         fi
