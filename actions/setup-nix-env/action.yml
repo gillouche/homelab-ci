@@ -1,33 +1,9 @@
 name: Setup Nix Environment
-description: Configure AWS credentials for Nix cache access (Nix is pre-installed in runner)
-
-inputs:
-  profile:
-    description: 'Name of the AWS profile to configure'
-    required: true
-  access-key-id:
-    description: 'AWS Access Key ID'
-    required: true
-  secret-access-key:
-    description: 'AWS Secret Access Key'
-    required: true
+description: Ensure Nix is installed and configured with the S3 substituter (Nix is pre-installed in runner image)
 
 runs:
   using: composite
   steps:
-    - name: Setup AWS Profile
-      shell: bash
-      run: |
-        python3 "${{ github.action_path }}/../../scripts/configure_aws_profile.py" \
-          --profile "${{ inputs.profile }}" \
-          --access-key-id "${{ inputs.access-key-id }}" \
-          --secret-access-key "${{ inputs.secret-access-key }}"
-
-        # Mirror to root for Nix Daemon
-        sudo mkdir -p /root/.aws
-        sudo cp ~/.aws/credentials /root/.aws/credentials
-        sudo cp ~/.aws/config /root/.aws/config
-
     - name: Check for Existing Nix
       id: check-nix
       shell: bash
@@ -49,3 +25,17 @@ runs:
           trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
           require-sigs = false
           s3-creds-profile = nix
+
+    - name: Configure Nix S3 Cache Profile
+      shell: bash
+      run: |
+        sudo mkdir -p /etc/nix
+        if ! [ -f /etc/nix/nix.conf ] || ! grep -q "s3-creds-profile = nix" /etc/nix/nix.conf 2>/dev/null; then
+          echo "s3-creds-profile = nix" | sudo tee -a /etc/nix/nix.conf
+          # Restart nix-daemon to pick up changes
+          if command -v systemctl >/dev/null 2>&1 && systemctl is-active nix-daemon >/dev/null 2>&1; then
+            sudo systemctl restart nix-daemon
+          elif [ -f /var/run/nix-daemon.pid ]; then
+            sudo pkill -HUP nix-daemon || true
+          fi
+        fi

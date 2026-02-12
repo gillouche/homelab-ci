@@ -1,0 +1,30 @@
+name: Setup AWS Profile
+description: Configure an AWS credentials profile for S3-compatible storage access
+
+inputs:
+  profile:
+    description: 'Name of the AWS profile to configure'
+    required: true
+  access-key-id:
+    description: 'AWS Access Key ID'
+    required: true
+  secret-access-key:
+    description: 'AWS Secret Access Key'
+    required: true
+  region:
+    description: 'AWS Region'
+    required: false
+    default: 'us-east-1'
+
+runs:
+  using: composite
+  steps:
+    - name: Configure AWS Profile
+      shell: bash
+      run: |
+        python3 "${{ github.action_path }}/../../scripts/configure_aws_profile.py" \
+          --profile "${{ inputs.profile }}" \
+          --access-key-id "${{ inputs.access-key-id }}" \
+          --secret-access-key "${{ inputs.secret-access-key }}" \
+          --region "${{ inputs.region }}" \
+          --mirror-to-root
