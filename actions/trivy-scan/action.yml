@@ -29,18 +29,25 @@ outputs:
 runs:
   using: composite
   steps:
+    - name: Install Trivy from container image
+      shell: bash
+      run: |
+        TRIVY_IMAGE="nexus.gillouche.homelab/docker-hub/aquasec/trivy:0.69.1"
+        CID=$(docker create "$TRIVY_IMAGE")
+        docker cp "$CID:/usr/local/bin/trivy" "$HOME/.local/bin/trivy"
+        docker rm "$CID" > /dev/null
+        chmod +x "$HOME/.local/bin/trivy"
+        echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
     - name: Run Trivy Scan
       shell: bash
       run: |
-        docker run --rm \
-          -v /var/run/docker.sock:/var/run/docker.sock \
-          -v "$PWD:/work" \
-          nexus.gillouche.homelab/docker-hub/aquasec/trivy:0.69.1 image \
-            --format json \
-            --output /work/trivy-results.json \
-            --severity "${{ inputs.severity }}" \
-            --ignore-unfixed \
-            "${{ inputs.image }}"
+        "$HOME/.local/bin/trivy" image \
+          --format json \
+          --output trivy-results.json \
+          --severity "${{ inputs.severity }}" \
+          --ignore-unfixed \
+          "${{ inputs.image }}"
 
     - name: Analyze Results
       id: analyze
