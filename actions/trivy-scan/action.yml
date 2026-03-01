@@ -44,6 +44,7 @@ runs:
       shell: bash
       run: |
         "$HOME/.local/bin/trivy" image \
+          --image-src remote \
           --format json \
           --output trivy-results.json \
           --severity "${{ inputs.severity }}" \
