@@ -30,7 +30,7 @@ runs:
   using: composite
   steps:
     - name: Install Trivy
-      uses: aquasecurity/setup-trivy@3fb12ec4a4f16de6461e42e5f292beb8e92d1d0e # post-v0.2.5 fix for deleted trivy commit
+      uses: aquasecurity/setup-trivy@3fb12ec12f41e471780db15c232d5dd185dcb514 # v0.2.5
 
     - name: Run Trivy Scan
       shell: bash
