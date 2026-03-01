@@ -30,13 +30,17 @@ runs:
   using: composite
   steps:
     - name: Run Trivy Scan
-      uses: aquasecurity/trivy-action@0.34.1
-      with:
-        image-ref: ${{ inputs.image }}
-        format: json
-        output: trivy-results.json
-        severity: ${{ inputs.severity }}
-        ignore-unfixed: true
+      shell: bash
+      run: |
+        docker run --rm \
+          -v /var/run/docker.sock:/var/run/docker.sock \
+          -v "$PWD:/work" \
+          nexus.gillouche.homelab/docker-hub/aquasec/trivy:0.69.1 image \
+            --format json \
+            --output /work/trivy-results.json \
+            --severity "${{ inputs.severity }}" \
+            --ignore-unfixed \
+            "${{ inputs.image }}"
 
     - name: Analyze Results
       id: analyze
