@@ -33,6 +33,13 @@ runs:
       shell: bash
       run: |
         TRIVY_IMAGE="nexus.gillouche.homelab/docker-hub/aquasec/trivy:0.69.1"
+
+        # Ensure Docker trusts the Nexus registry CA
+        if [ -f /usr/local/share/ca-certificates/nexus-ca.crt ]; then
+          sudo mkdir -p /etc/docker/certs.d/nexus.gillouche.homelab
+          sudo cp /usr/local/share/ca-certificates/nexus-ca.crt /etc/docker/certs.d/nexus.gillouche.homelab/ca.crt
+        fi
+
         mkdir -p "$HOME/.local/bin"
         CID=$(docker create "$TRIVY_IMAGE")
         docker cp "$CID:/usr/local/bin/trivy" "$HOME/.local/bin/trivy"
