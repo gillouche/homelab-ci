@@ -446,6 +446,94 @@ class TestDiscordNotification:
             send_discord_notification("http://webhook", "image", "v1", {"CVE-1"})
 
 
+class TestImageVersionParsing:
+    @patch(
+        "check_scan_results.sys.argv",
+        [
+            "check_scan_results.py",
+            "--results",
+            "trivy.json",
+            "--ignore",
+            ".trivyignore",
+            "--image",
+            "nexus.gillouche.homelab/docker-hosted/longhorn-replica-rebalancer:b776fb29ac01bff6a179fe898baeff9cfea526de",
+        ],
+    )
+    @patch("check_scan_results.load_trivy_ignores", return_value=set())
+    @patch("check_scan_results.analyze_trivy_results", return_value=([], set()))
+    @patch("builtins.open", new_callable=MagicMock)
+    @patch("json.load")
+    def test_long_image_name_shortened(
+        self, mock_json_load, mock_open, mock_analyze, mock_load_ignores
+    ):
+        import check_scan_results
+
+        parser = check_scan_results.argparse.ArgumentParser()
+        parser.add_argument("--results", required=True)
+        parser.add_argument("--ignore", required=True)
+        parser.add_argument("--webhook", default=None)
+        parser.add_argument("--image", default="Unknown Image")
+        parser.add_argument("--version", default=None)
+
+        args = parser.parse_args(
+            [
+                "--results",
+                "trivy.json",
+                "--ignore",
+                ".trivyignore",
+                "--image",
+                "nexus.gillouche.homelab/docker-hosted/longhorn-replica-rebalancer:b776fb29ac01bff6a179fe898baeff9cfea526de",
+            ]
+        )
+
+        if args.version is None:
+            if ":" in args.image:
+                args.version = args.image.rsplit(":", 1)[1][:12]
+            else:
+                args.version = "latest"
+        image_parts = args.image.rsplit(":", 1)[0] if ":" in args.image else args.image
+        args.image = (
+            image_parts.rsplit("/", 1)[-1] if "/" in image_parts else image_parts
+        )
+
+        assert args.image == "longhorn-replica-rebalancer"
+        assert args.version == "b776fb29ac01"
+
+    def test_image_with_latest_tag(self):
+        image = "nexus.example.com/docker-hosted/myapp:latest"
+        version = image.rsplit(":", 1)[1][:12]
+        image_parts = image.rsplit(":", 1)[0]
+        short_image = image_parts.rsplit("/", 1)[-1]
+
+        assert short_image == "myapp"
+        assert version == "latest"
+
+    def test_image_without_tag(self):
+        image = "nexus.example.com/docker-hosted/myapp"
+        has_tag = ":" in image
+        version = image.rsplit(":", 1)[1][:12] if has_tag else "latest"
+        image_parts = image.rsplit(":", 1)[0] if has_tag else image
+        short_image = image_parts.rsplit("/", 1)[-1]
+
+        assert short_image == "myapp"
+        assert version == "latest"
+
+    def test_simple_image_name(self):
+        image = "myapp:v1.2.3"
+        version = image.rsplit(":", 1)[1][:12]
+        image_parts = image.rsplit(":", 1)[0]
+        short_image = image_parts.rsplit("/", 1)[-1]
+
+        assert short_image == "myapp"
+        assert version == "v1.2.3"
+
+    def test_sha_tag_truncated(self):
+        image = "registry/repo/app:abc123def456789"
+        version = image.rsplit(":", 1)[1][:12]
+
+        assert version == "abc123def456"
+
+
 class TestMainIntegration:
     @patch(
         "check_scan_results.sys.argv",

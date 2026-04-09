@@ -222,11 +222,17 @@ def main():
         "--webhook", help="Discord webhook URL for notifications", default=None
     )
     parser.add_argument("--image", help="Image name context", default="Unknown Image")
-    parser.add_argument(
-        "--version", help="Image version/tag context", default="Unknown Version"
-    )
+    parser.add_argument("--version", help="Image version/tag context", default=None)
 
     args = parser.parse_args()
+
+    if args.version is None:
+        if ":" in args.image:
+            args.version = args.image.rsplit(":", 1)[1][:12]
+        else:
+            args.version = "latest"
+    image_parts = args.image.rsplit(":", 1)[0] if ":" in args.image else args.image
+    args.image = image_parts.rsplit("/", 1)[-1] if "/" in image_parts else image_parts
 
     json_file: str = args.results
     ignore_file: str = args.ignore
